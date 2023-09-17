@@ -1,0 +1,6 @@
+﻿  handmade.cpp
+E:\Project\HandmadeHero\code\handmade.cpp(1,1): warning C4819: The file contains a character that cannot be represented in the current code page (936). Save the file in Unicode format to prevent data loss
+E:\Project\HandmadeHero\code\handmade.cpp(538,22): warning C4477: 'sprintf_s' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'int64'
+E:\Project\HandmadeHero\code\handmade.cpp(538,22): message : consider using '%lld' in the format string
+E:\Project\HandmadeHero\code\handmade.cpp(538,22): message : consider using '%I64d' in the format string
+  HandmadeHero.vcxproj -> E:\Project\HandmadeHero\Debug\HandmadeHero.exe
