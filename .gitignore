@@ -37,3 +37,5 @@ Debug/HandmadeHero.exe
 Debug/HandmadeHero.pdb
 Release/HandmadeHero.exe
 Release/HandmadeHero.pdb
+.vs/HandmadeHero/v17/Browse.VC.db
+*.db
