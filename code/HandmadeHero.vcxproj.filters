@@ -13,10 +13,30 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\Platform">
+      <UniqueIdentifier>{5ed2c688-8fa6-4b15-9360-605fae75463c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Platform\windows">
+      <UniqueIdentifier>{a004b243-57ad-4452-b980-e72d8199a7c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Platform\linux">
+      <UniqueIdentifier>{00948023-05d4-4238-8344-def542e36c81}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="platform\linux\linux_handmade.cpp">
+      <Filter>Source Files\Platform\linux</Filter>
+    </ClCompile>
     <ClCompile Include="handmade.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="platform\windows\win_handmade.cpp">
+      <Filter>Source Files\Platform\windows</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="handmade.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

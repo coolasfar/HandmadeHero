@@ -20,6 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="handmade.cpp" />
+    <ClCompile Include="platform\linux\linux_handmade.cpp" />
+    <ClCompile Include="platform\windows\win_handmade.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="handmade.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
