@@ -11,7 +11,7 @@ created date: 2022/04/16
 #include <intrin.h>
 #include <iostream>
 
-#include "../../handmade.h"
+#include "../../handmade.cpp"
 //#include "../../handmade.h"
 #define MessageBox MessageBoxW
 
@@ -347,7 +347,7 @@ LRESULT CALLBACK MainWindowCallback(HWND hwnd,
 	return Result;
 }
 
-struct SoundOutput
+struct sound_output
 {
 	int SamplePerSecond;
 	int SquareWaveCounter;
@@ -360,13 +360,52 @@ struct SoundOutput
 	int SecondaryBufferSize;
 };
 
-static void FillSoundBuffer(SoundOutput* soundOutput, DWORD ByteToLock, DWORD ByteToWrite)
+internal void ClearSoundBuffer(sound_output* soundOutput)
 {
 	VOID* Region1;
 	DWORD	Region1Size;
 	VOID* Region2;
 	DWORD	Region2Size;
 
+
+	if (SUCCEEDED(
+		GlobalSecondaryBuffer->Lock(0,
+			soundOutput->SecondaryBufferSize,
+			&Region1,
+			&Region1Size,
+			&Region2,
+			&Region2Size,
+			0
+		)))
+	{
+
+		uint8* DestSample = (uint8*)Region1;
+
+		for (DWORD ByteIndex = 0; ByteIndex < Region1Size; ++ByteIndex)
+		{
+			*DestSample++ = 0;
+		}
+
+		DestSample = (uint8*)Region2;
+		for (DWORD ByteIndex = 0; ByteIndex < Region2Size; ++ByteIndex)
+		{
+			*DestSample++ = 0;
+		}
+
+		GlobalSecondaryBuffer->Unlock(
+			Region1,
+			Region1Size,
+			Region2,
+			Region2Size);
+	}
+}
+
+internal void FillSoundBuffer(sound_output* soundOutput, DWORD ByteToLock, DWORD ByteToWrite, game_sound_buffer* sound_buffer)
+{
+	VOID* Region1;
+	DWORD	Region1Size;
+	VOID* Region2;
+	DWORD	Region2Size;
 
 	GlobalSecondaryBuffer->Lock(
 		ByteToLock,
@@ -378,29 +417,22 @@ static void FillSoundBuffer(SoundOutput* soundOutput, DWORD ByteToLock, DWORD By
 		0
 	);
 
-	int16* SampleOut = (int16*)Region1;
+	int16* DestSample = (int16*)Region1;
+	int16* SourceSample = sound_buffer->Samples;
 	DWORD	Region1SampleCount = Region1Size / soundOutput->BytesPerSample;
 	DWORD	Region2SampleCount = Region2Size / soundOutput->BytesPerSample;
 	for (DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; ++SampleIndex)
 	{
-		real32 t = 2.0f * PI32 * (real32)soundOutput->RunningSampleIndex / (real32)soundOutput->WavePeriod;
-		real32 SineValue = sinf(t);
-		int16 SampleValue = (int16)(SineValue * soundOutput->ToneVolume);
-
-		*SampleOut++ = SampleValue;
-		*SampleOut++ = SampleValue;
+		*DestSample++ = *SourceSample++;
+		*DestSample++ = *SourceSample++;
 		++(soundOutput->RunningSampleIndex);
 	}
 
-	SampleOut = (int16*)Region2;
+	DestSample = (int16*)Region2;
 	for (DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; ++SampleIndex)
 	{
-		real32 t = 2.0f * PI32 * (real32)soundOutput->RunningSampleIndex / (real32)soundOutput->WavePeriod;
-		real32 SineValue = sinf(t);
-		int16 SampleValue = (int16)(SineValue * soundOutput->ToneVolume);
-
-		*SampleOut++ = SampleValue;
-		*SampleOut++ = SampleValue;
+		*DestSample++ = *SourceSample++;
+		*DestSample++ = *SourceSample++;
 		++(soundOutput->RunningSampleIndex);
 	}
 
@@ -412,22 +444,7 @@ static void FillSoundBuffer(SoundOutput* soundOutput, DWORD ByteToLock, DWORD By
 		Region2Size);
 }
 
-//struct platform_window
-//{
-//	HWND Handle;
-//};
-//
-//platform_window* PlatformOpenWindow(char* title)
-//{
-//	platform_window* result = allocate
-//}
-//void PlatformCloseWindow(platform_window* window)
-//{
-//	if (window)
-//	{
-//		CloseWindow(window->Handle);
-//	}
-//}
+
 int WINAPI WinMain(
 	HINSTANCE hInstance,
 	HINSTANCE hPrevInstance,
@@ -469,7 +486,7 @@ int WINAPI WinMain(
 			GlobalRunning = true;
 			HDC DeviceContext = GetDC(WindowHanlde);
 
-			SoundOutput soundOutput = {};
+			sound_output soundOutput = {};
 
 			soundOutput.SamplePerSecond = 48000;
 			soundOutput.SquareWaveCounter = 0;
@@ -481,13 +498,16 @@ int WINAPI WinMain(
 			soundOutput.SecondaryBufferSize = soundOutput.SamplePerSecond * soundOutput.BytesPerSample;
 
 			InitDSound(WindowHanlde, soundOutput.SamplePerSecond, soundOutput.SecondaryBufferSize);
-			FillSoundBuffer(&soundOutput, 0, soundOutput.SecondaryBufferSize);
+			ClearSoundBuffer(&soundOutput);
 
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
+			int16* Samples = (int16*)VirtualAlloc(0, soundOutput.SecondaryBufferSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+			
+
 			LARGE_INTEGER LastCounter;
 			QueryPerformanceCounter(&LastCounter);
-
+			
 			int64 LastCycleCount = __rdtsc();
 
 			while (GlobalRunning)
@@ -504,21 +524,16 @@ int WINAPI WinMain(
 					DispatchMessage(&Message);
 				}
 
-				game_offscreen_buffer Buffer = {};
-				Buffer.Memory = GlobalBackBuffer.Memory;
-				Buffer.Width = GlobalBackBuffer.Width;
-				Buffer.Height = GlobalBackBuffer.Height;
-				Buffer.Pitch = GlobalBackBuffer.Pitch;
-
-				GameUpdateAndRender(&Buffer,xOffset,yOffset);
-				//RenderGradient(&GlobalBackBuffer, xOffset, yOffset);
-
+				DWORD ByteToLock;
+				DWORD ByteToWrite;
+			//	DWORD TargetCursor;
 				DWORD PlayCursor;
 				DWORD WriteCursor;
+				bool SoundIsValid = false;
 				if (SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor)))
 				{
-					DWORD ByteToLock = (soundOutput.RunningSampleIndex * soundOutput.BytesPerSample) % soundOutput.SecondaryBufferSize;
-					DWORD ByteToWrite;
+					ByteToLock = (soundOutput.RunningSampleIndex * soundOutput.BytesPerSample) % soundOutput.SecondaryBufferSize;
+
 					if (ByteToLock == PlayCursor)
 					{
 						ByteToWrite = 0;
@@ -533,9 +548,27 @@ int WINAPI WinMain(
 						ByteToWrite = PlayCursor - ByteToLock;
 					}
 
+					SoundIsValid = true;
+				}
 
-					FillSoundBuffer(&soundOutput, ByteToLock, ByteToWrite);
+				game_offscreen_buffer buffer = {};
+				buffer.Memory = GlobalBackBuffer.Memory;
+				buffer.Width = GlobalBackBuffer.Width;
+				buffer.Height = GlobalBackBuffer.Height;
+				buffer.Pitch = GlobalBackBuffer.Pitch;
 
+				
+				game_sound_buffer sound_buffer = {};
+				sound_buffer.SamplePerSecond = soundOutput.SamplePerSecond;
+				
+				sound_buffer.SampleCount = ByteToWrite / soundOutput.BytesPerSample; 
+				sound_buffer.Samples =Samples;
+
+				GameUpdateAndRender(&buffer,&sound_buffer,xOffset,yOffset,soundOutput.Hz);
+
+				if(SoundIsValid)
+				{
+					FillSoundBuffer(&soundOutput, ByteToLock, ByteToWrite, &sound_buffer);
 				}
 
 
@@ -544,8 +577,6 @@ int WINAPI WinMain(
 					&GlobalBackBuffer, 0, 0, dimension.Width, dimension.Height);
 				ReleaseDC(WindowHanlde, DeviceContext);
 
-			/*	++xOffset;
-				++yOffset;*/
 				LARGE_INTEGER EndCounter;
 				QueryPerformanceCounter(&EndCounter);
 

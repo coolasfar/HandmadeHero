@@ -3,7 +3,28 @@
 
 
 
-static void RenderGradient(game_offscreen_buffer* Buffer, int xOffset, int yOffset)
+internal void GameOutputSound(game_sound_buffer* SoundBuffer, int toneHz)
+{
+	local_persist real32 tSine;
+	int16 ToneVolume = 3000;
+	int wavePeriod = SoundBuffer->SamplePerSecond / toneHz;
+
+	int16* SampleOut = SoundBuffer->Samples;
+	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
+	{
+		real32 SineValue = sinf(tSine);
+		int16 SampleValue = (int16)(SineValue * ToneVolume);
+
+		*SampleOut++ = SampleValue;
+		*SampleOut++ = SampleValue;
+
+		tSine += 2.0f * PI32 / (real32)wavePeriod;
+	}
+}
+
+
+// TODO:
+internal void RenderGradient(game_offscreen_buffer* Buffer, int xOffset, int yOffset)
 {
 	int width = Buffer->Width;
 	int height = Buffer->Height;
@@ -16,7 +37,7 @@ static void RenderGradient(game_offscreen_buffer* Buffer, int xOffset, int yOffs
 		{
 			uint8 blue = (x + xOffset);
 			uint8 green = (y + yOffset);
-			//					xx RR GG BB
+			//	xx RR GG BB
 			// pixel in memory: 00 00 00 00
 			*Pixel++ = ((green << 8) | blue);
 		}
@@ -24,7 +45,9 @@ static void RenderGradient(game_offscreen_buffer* Buffer, int xOffset, int yOffs
 	}
 }
 
-void GameUpdateAndRender(game_offscreen_buffer* Buffer, int BlueOffset, int GreenOffset)
+internal void GameUpdateAndRender(game_offscreen_buffer* graphic_buffer, game_sound_buffer* sound_buffer, int BlueOffset, int GreenOffset, int toneHz)
 {
-	RenderGradient(Buffer, BlueOffset, GreenOffset);
+	GameOutputSound(sound_buffer,toneHz);
+	RenderGradient(graphic_buffer, BlueOffset, GreenOffset);
 }
+

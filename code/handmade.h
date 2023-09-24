@@ -1,14 +1,15 @@
 #ifndef _HANDMADE_H
 #define _HANDMADE_H
 
-
 #include <stdint.h>
+#include <math.h>
 // four things - timing, controller/keyboard, bitmap and sound buffer
 
 #define internal			static
 #define local_persist		static
 #define global_variable		static
 
+#define PI32				3.141592653F
 
 typedef int8_t				int8;
 typedef int16_t				int16;
@@ -37,6 +38,23 @@ struct game_offscreen_buffer
 	int			BytePerPixel;
 };
 
-void GameUpdateAndRender(game_offscreen_buffer* buffer,int BlueOffset, int GreenOffset);
+struct game_sound_buffer
+{
+	int SampleCount;
+	int16* Samples;
+	int SamplePerSecond;
+	//int SquareWaveCounter;
+	//int Hz;
+	//int ToneVolume;
+	//uint32 RunningSampleIndex;
+	//int BytesPerSample;
+	//int WavePeriod;
+
+	//int SecondaryBufferSize;
+};
+
+internal void GameUpdateAndRender(game_offscreen_buffer*
+	graphic_buffer, game_sound_buffer* sound_buffer, int BlueOffset, int GreenOffset);
+
 
 #endif
