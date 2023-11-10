@@ -38,5 +38,8 @@
     <ClInclude Include="handmade.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="platform\windows\win_handmade.h">
+      <Filter>Source Files\Platform\windows</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
