@@ -39,3 +39,4 @@ Release/HandmadeHero.exe
 Release/HandmadeHero.pdb
 *.db
 build/
+test.out

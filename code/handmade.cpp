@@ -60,7 +60,8 @@ internal void GameUpdateAndRender(game_memory* memory,
 		
 		if (file.contents)
 		{
-			DebugPlatformWriteEntireFile("e:/HandmadeHero/test.out", file.contents,file.contentSize);
+			DebugPlatformWriteEntireFile("e:/HandmadeHero/test.out", 
+				file.contents,file.contentSize);
 			DebugPlatformFreeFileMemory(file.contents);
 		}
 
