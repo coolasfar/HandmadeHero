@@ -1,142 +1,120 @@
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Casey Muratori $
-   $Notice: (C) Copyright 2014 by Molly Rocket, Inc. All Rights Reserved. $
-   ======================================================================== */
 
 #include "handmade.h"
 
+//#pragma comment(linker, "/export:GameUpdateAndRender")
+//#pragma comment(linker, "/export:GameGetSoundSamples")
 
-
-
-
-internal void
-GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, int ToneHz)
+internal void GameOutputSound(game_state * gameState,
+	game_sound_buffer* SoundBuffer, int toneHz)
 {
-    int16 ToneVolume = 3000;
-    int WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
+	int16 ToneVolume = 3000;
+	int WavePeriod = SoundBuffer->SamplePerSecond / toneHz;
 
-    int16* SampleOut = SoundBuffer->Samples;
-    for (int SampleIndex = 0;
-        SampleIndex < SoundBuffer->SampleCount;
-        ++SampleIndex)
-    {
-        // TODO(casey): Draw this out for people
-        real32 SineValue = sinf(GameState->tSine);
-        int16 SampleValue = (int16)(SineValue * ToneVolume);
-        *SampleOut++ = SampleValue;
-        *SampleOut++ = SampleValue;
+	int16* SampleOut = SoundBuffer->Samples;
+	for (int SampleIndex = 0;
+		SampleIndex < SoundBuffer->SampleCount;
+		++SampleIndex)
+	{
+		real32 SineValue = sinf(gameState->tSine);
+		int16 SampleValue = (int16)(SineValue * ToneVolume);
 
-        GameState->tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
-        if (GameState->tSine > 2.0f * Pi32)
-        {
-            GameState->tSine -= 2.0f * Pi32;
-        }
-    }
+		*SampleOut++ = SampleValue;
+		*SampleOut++ = SampleValue;
+		gameState->tSine += 2.0f * PI32 * 1.0f / (real32)WavePeriod;
+
+		if (gameState->tSine > 2.0f * PI32)
+		{
+			gameState->tSine -= 2.0f * PI32;
+		}
+	}
 }
 
-internal void
-RenderWeirdGradient(game_offscreen_buffer* Buffer, int BlueOffset, int GreenOffset)
+void RenderGradient(game_offscreen_buffer* Buffer, 
+	int xOffset, int yOffset)
 {
-    // TODO(casey): Let's see what the optimizer does
 
-    uint8* Row = (uint8*)Buffer->Memory;
-    for (int Y = 0;
-        Y < Buffer->Height;
-        ++Y)
-    {
-        uint32* Pixel = (uint32*)Row;
-        for (int X = 0;
-            X < Buffer->Width;
-            ++X)
-        {
-            uint8 Blue = (uint8)(X + BlueOffset);
-            uint8 Green = (uint8)(Y + GreenOffset);
-
-            *Pixel++ = ((Green << 8) | Blue << 8);
-        }
-
-        Row += Buffer->Pitch;
-    }
+	uint8* Row = (uint8*)Buffer->Memory;
+	for (int y = 0; y < Buffer->Height; ++y)
+	{
+		uint32* Pixel = (uint32*)Row;
+		for (int x = 0; x < Buffer->Width; ++x)
+		{
+			uint8 blue = (x /2 + xOffset);
+			uint8 green = (y + yOffset);
+			//	xx RR GG BB
+			// pixel in memory: 00 00 00 00
+			*Pixel++ = ((green << 8) | blue<<16);
+		}
+		Row += Buffer->Pitch;
+	}
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
-    Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
-        (ArrayCount(Input->Controllers[0].Buttons)));
-    Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
+	Assert(sizeof(game_state) <= memory->permanentStorageSize);
 
-    game_state* GameState = (game_state*)Memory->PermanentStorage;
-    if (!Memory->IsInitialized)
-    {
-        const char* Filename = __FILE__;
+	game_state* gameState = (game_state*)memory->permanentStorage;
+	if (!memory->isInitialized)
+	{
+		const char* filename = __FILE__;
 
-        debug_read_file_result File = Memory->DEBUGPlatformReadEntireFile(Filename);
-        if (File.Contents)
-        {
-            Memory->DEBUGPlatformWriteEntireFile("test.out", File.ContentsSize, File.Contents);
-            Memory->DEBUGPlatformFreeFileMemory(File.Contents);
-        }
+		debug_read_file_result file = memory->debugPlatformReadFile(filename);
 
-        GameState->ToneHz = 512;
-        GameState->tSine = 0.0f;
+		if (file.contents)
+		{
+			memory->debugPlatformWriteFile("e:/HandmadeHero/test.out",
+				file.contents, file.contentSize);
+			memory->debugPlatformFreeFileMemory(file.contents);
+		}
 
-        // TODO(casey): This may be more appropriate to do in the platform layer
-        Memory->IsInitialized = true;
-    }
+		gameState->toneHZ = 256;
+		gameState->tSine = 0.0f;
+		memory->isInitialized = true;
+	}
 
-    for (int ControllerIndex = 0;
-        ControllerIndex < ArrayCount(Input->Controllers);
-        ++ControllerIndex)
-    {
-        game_controller_input* Controller = GetController(Input, ControllerIndex);
-        if (Controller->IsAnalog)
-        {
-            // NOTE(casey): Use analog movement tuning
-            GameState->BlueOffset += (int)(4.0f * Controller->StickAverageX);
-            GameState->ToneHz = 512 + (int)(128.0f * Controller->StickAverageY);
-        }
-        else
-        {
-            // NOTE(casey): Use digital movement tuning
-            if (Controller->MoveLeft.EndedDown)
-            {
-                GameState->BlueOffset -= 1;
-            }
+	for (int ControllerIndex = 0;
+		ControllerIndex < ArrayCount(input->Controllers);
+		++ControllerIndex)
+	{
+	
+		game_controller_input* controller = &input->Controllers[0];
+		if (controller->IsAnalog)
+		{
+			gameState->toneHZ += (int)(128 * (controller->stickAverageX));
+			gameState->blueOffset += (int)4.0f * (controller->stickAverageY);
+		}
+		else
+		{
+			if (controller->actionLeft.EndedDown)
+			{
+				gameState->blueOffset -= 10;
+			}
+			if (controller->actionRight.EndedDown)
+			{
+				gameState->blueOffset += 10;
+			}
+		}
 
-            if (Controller->MoveRight.EndedDown)
-            {
-                GameState->BlueOffset += 1;
-            }
-        }
+		if (controller->actionDown.EndedDown)
+		{
+			gameState->greenOffset += 10;
+		}
 
-        // Input.AButtonEndedDown;
-        // Input.AButtonHalfTransitionCount;
-        if (Controller->ActionDown.EndedDown)
-        {
-            GameState->GreenOffset += 1;
-        }
-    }
+		if (controller->actionDown.EndedDown)
+		{
+			gameState->blueOffset += 10;
+		}
+	}
 
-    RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
+	RenderGradient(graphic_buffer, 
+		gameState->blueOffset,
+		gameState->greenOffset);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
 {
-    game_state* GameState = (game_state*)Memory->PermanentStorage;
-    GameOutputSound(GameState, SoundBuffer, GameState->ToneHz);
+	game_state* gameState = (game_state*)memory->permanentStorage;
+	GameOutputSound(gameState, sound_buffer, gameState->toneHZ);
 }
 
-
-#include "windows.h"
-BOOL WINAPI DllMain(
-     HINSTANCE hinstDLL,
-     DWORD fdwReason,
-     LPVOID lpvReserved
-)
-{
-    return(TRUE);
-}
 

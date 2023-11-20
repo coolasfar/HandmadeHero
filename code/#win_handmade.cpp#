@@ -171,6 +171,9 @@ struct game_code
 
 
 
+
+
+
 internal game_code LoadGameCode()
 {
 	game_code result = {};
@@ -504,6 +507,7 @@ LRESULT CALLBACK MainWindowCallback(HWND hwnd,
 		GetClientRect(hwnd, &clientRect);
 
 		window_dimension dimension = GetWindowDimension(hwnd);
+
 		UpdateWindow(DeviceContext, dimension.Width, 
 			dimension.Height, &GlobalBackBuffer, 
 			X, Y, dimension.Width, dimension.Height);

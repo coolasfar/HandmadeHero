@@ -1,219 +1,192 @@
-#if !defined(HANDMADE_H)
-/* ========================================================================
-   $File: $
-   $Date: $
-   $Revision: $
-   $Creator: Casey Muratori $
-   $Notice: (C) Copyright 2014 by Molly Rocket, Inc. All Rights Reserved. $
-   ======================================================================== */
+#ifndef _HANDMADE_H
+#define _HANDMADE_H
 
-   /*
-     NOTE(casey):
-
-     HANDMADE_INTERNAL:
-       0 - Build for public release
-       1 - Build for developer only
-
-     HANDMADE_SLOW:
-       0 - Not slow code allowed!
-       1 - Slow code welcome.
-   */
-
-   // TODO(casey): Implement sine ourselves
-#include <math.h>
 #include <stdint.h>
+#include <math.h>
+// four things - timing, controller/keyboard, bitmap and sound buffer
 
-#define internal static 
-#define local_persist static 
-#define global_variable static
+// TODO swap min max Macro
+#define Assert(Expression)	if(!(Expression)) {*(int *)0 = 0;}
 
-#define Pi32 3.14159265359f
+#define ArrayCount(array)	(sizeof(array)/sizeof(array[0]))
 
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-typedef int32 bool32;
+#define KILOBYTES(value)	((value)*1024LL)
+#define MEGABYTES(value)	(KILOBYTES(value)*1024LL)
+#define GIGABYTES(value)	(MEGABYTES(value)*1024LL)
+#define TERABYTES(value)	(GIGABYTES(value)*1024LL)
 
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
+#define internal			static
+#define local_persist		static
+#define global_variable		static
 
-typedef float real32;
-typedef double real64;
+#define PI32				3.141592653F
 
-#if HANDMADE_SLOW
-// TODO(casey): Complete assertion macro - don't worry everyone!
-#define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
-#else
-#define Assert(Expression)
-#endif
+typedef int8_t				int8;
+typedef int16_t				int16;
+typedef int32_t				int32;
+typedef int64_t				int64;
 
-#define Kilobytes(Value) ((Value)*1024LL)
-#define Megabytes(Value) (Kilobytes(Value)*1024LL)
-#define Gigabytes(Value) (Megabytes(Value)*1024LL)
-#define Terabytes(Value) (Gigabytes(Value)*1024LL)
+typedef uint8_t				uint8;
+typedef uint16_t			uint16;
+typedef uint32_t			uint32;
+typedef uint64_t			uint64;
 
-#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
-// TODO(casey): swap, min, max ... macros???
+typedef float				real32;
+typedef double				real64;
 
-inline uint32
-SafeTruncateUInt64(uint64 Value)
-{
-    // TODO(casey): Defines for maximum values
-    Assert(Value <= 0xFFFFFFFF);
-    uint32 Result = (uint32)Value;
-    return(Result);
-}
+global_variable int			xOffset = 0;
+global_variable int			yOffset = 0;
 
-/*
-  NOTE(casey): Services that the platform layer provides to the game
-*/
-#if 1
-/* IMPORTANT(casey):
 
-   These are NOT for doing anything in the shipping game - they are
-   blocking and the write doesn't protect against lost data!
-*/
 struct debug_read_file_result
 {
-    uint32 ContentsSize;
-    void* Contents;
+	void* contents;
+	uint32 contentSize;
 };
 
-#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(void *Memory)
+
+#define DEBUG_PLATFORM_READ_FILE(name) \
+debug_read_file_result name(const char* filename)
+
+typedef DEBUG_PLATFORM_READ_FILE(debug_platform_read_file);
+
+#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) \
+void name(void* memory)
+
 typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
 
-#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(const char *Filename)
-typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
+#define DEBUG_PLATFORM_WRITE_FILE(name) \
+bool name(const char* filename, void* memory,uint32 memorySize)
 
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(const char *Filename, uint32 MemorySize, void *Memory)
-typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
+typedef DEBUG_PLATFORM_WRITE_FILE(debug_platform_write_file);
 
-#endif
+//debug_read_file_result DebugPlatformReadEntireFile(const char* filename);
+//void DebugPlatformFreeFileMemory(void* memory);
+//bool DebugPlatformWriteEntireFile(const char* filename, void* memory,uint32 memorySize);
 
-/*
-  NOTE(casey): Services that the game provides to the platform layer.
-  (this may expand in the future - sound on separate thread, etc.)
-*/
+inline uint32 SafeTruncateUint64(uint64 value)
+{
+	Assert(value <= 0xFFFFFFFF);
+	uint32 result = (uint32)value;
+	return result;
+}
 
-// FOUR THINGS - timing, controller/keyboard input, bitmap buffer to use, sound buffer to use
-
-// TODO(casey): In the future, rendering _specifically_ will become a three-tiered abstraction!!!
 struct game_offscreen_buffer
 {
-    // NOTE(casey): Pixels are alwasy 32-bits wide, Memory Order BB GG RR XX
-    void* Memory;
-    int Width;
-    int Height;
-    int Pitch;
+	// NOTE: Pixels are always 32-bit wide,little endian . Memory order BB GG RR XX
+	//BITMAPINFO	Info;
+	void*		Memory;
+	int			Width;
+	int			Height;
+	int			Pitch;
+	int			BytePerPixel;
 };
 
-struct game_sound_output_buffer
+struct game_sound_buffer
 {
-    int SamplesPerSecond;
-    int SampleCount;
-    int16* Samples;
+	int SampleCount;
+	int16* Samples;
+	int SamplePerSecond;
 };
 
 struct game_button_state
 {
-    int HalfTransitionCount;
-    bool32 EndedDown;
+	int HalfTransitionCount;
+	bool EndedDown;
 };
 
 struct game_controller_input
 {
-    bool32 IsConnected;
-    bool32 IsAnalog;
-    real32 StickAverageX;
-    real32 StickAverageY;
+	bool isConnected;
+	bool IsAnalog;
 
-    union
-    {
-        game_button_state Buttons[12];
-        struct
-        {
-            game_button_state MoveUp;
-            game_button_state MoveDown;
-            game_button_state MoveLeft;
-            game_button_state MoveRight;
+	real32 stickAverageX;
+	real32 stickAverageY;
 
-            game_button_state ActionUp;
-            game_button_state ActionDown;
-            game_button_state ActionLeft;
-            game_button_state ActionRight;
+	union 
+	{
+		game_button_state Buttons[10];
+		struct 
+		{
+			game_button_state moveUp;
+			game_button_state moveDown;
+			game_button_state moveLeft;
+			game_button_state moveRight;
 
-            game_button_state LeftShoulder;
-            game_button_state RightShoulder;
+			game_button_state actionUp;
+			game_button_state actionDown;
+			game_button_state actionLeft;
+			game_button_state actionRight;
 
-            game_button_state Back;
-            game_button_state Start;
+			game_button_state LeftShoulder;
+			game_button_state RightShoulder;
 
-            // NOTE(casey): All buttons must be added above this line
+			game_button_state start;
+			game_button_state back;
+		};
 
-            game_button_state Terminator;
-        };
-    };
+	};
+
 };
 
 struct game_input
 {
-    // TODO(casey): Insert clock values here.    
-    game_controller_input Controllers[5];
+	game_controller_input Controllers[5];
+
 };
-inline game_controller_input* GetController(game_input* Input, int unsigned ControllerIndex)
-{
-    Assert(ControllerIndex < ArrayCount(Input->Controllers));
-
-    game_controller_input* Result = &Input->Controllers[ControllerIndex];
-    return(Result);
-}
-
-struct game_memory
-{
-    bool32 IsInitialized;
-
-    uint64 PermanentStorageSize;
-    void* PermanentStorage; // NOTE(casey): REQUIRED to be cleared to zero at startup
-
-    uint64 TransientStorageSize;
-    void* TransientStorage; // NOTE(casey): REQUIRED to be cleared to zero at startup
-
-    debug_platform_free_file_memory* DEBUGPlatformFreeFileMemory;
-    debug_platform_read_entire_file* DEBUGPlatformReadEntireFile;
-    debug_platform_write_entire_file* DEBUGPlatformWriteEntireFile;
-};
-
-#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
-typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
-GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
-{
-}
-
-
-// NOTE(casey): At the moment, this has to be a very fast function, it cannot be
-// more than a millisecond or so.
-// TODO(casey): Reduce the pressure on this function's performance by measuring it
-// or asking about it, etc.
-#define GAME_GET_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_output_buffer *SoundBuffer)
-typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
-GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub)
-{
-}
-//
-//
-//
 
 struct game_state
 {
-    int ToneHz;
-    int GreenOffset;
-    int BlueOffset;
+	int toneHZ;
+	int greenOffset;
+	int blueOffset;
 
-    real32 tSine;
+	real32 tSine;
+
 };
 
-#define HANDMADE_H
+struct game_memory
+{
+	bool isInitialized;
+	uint64 permanentStorageSize;
+	// required to be cleared to zero at start up
+	void* permanentStorage; 
+	uint64 transientStorageSize;
+	void* transientStorage;
+
+	debug_platform_read_file* debugPlatformReadFile;
+	debug_platform_free_file_memory* debugPlatformFreeFileMemory;
+	debug_platform_write_file* debugPlatformWriteFile;
+
+};
+
+struct game_clocks
+{
+	real32 secondsElapsed;
+};
+
+
+#define GAME_UPDATE_AND_RENDER(name) void name								 \
+(																			 \
+	game_memory* memory, game_input* input,                                  \
+	game_offscreen_buffer* graphic_buffer	 \
+)
+typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub) { }
+
+
+
+#define GAME_GET_SOUND_SAMPLES(name)	void name							 \
+(																			 \
+	game_memory* memory, game_sound_buffer* sound_buffer					 \
+)	                 
+
+typedef GAME_GET_SOUND_SAMPLES(game_get_sound_sample);
+
+GAME_GET_SOUND_SAMPLES(GameGetSoundSamplesStub) { }
+
+//void GameUpdateAndRender(game_memory* memory, game_input* input, game_offscreen_buffer* graphic_buffer);
+//
+//void GameGetSoundSamples(game_memory* memory, game_sound_buffer* sound_buffer);
+
 #endif
