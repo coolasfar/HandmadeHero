@@ -43,7 +43,7 @@ void RenderGradient(game_offscreen_buffer* Buffer,
 			uint8 green = (y + yOffset);
 			//	xx RR GG BB
 			// pixel in memory: 00 00 00 00
-			*Pixel++ = ((green << 8) | blue<<16);
+			*Pixel++ = ((green << 8) | blue << 8);
 		}
 		Row += Buffer->Pitch;
 	}
@@ -81,7 +81,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		if (controller->IsAnalog)
 		{
 			gameState->toneHZ += (int)(128 * (controller->stickAverageX));
-			gameState->blueOffset += (int)4.0f * (controller->stickAverageY);
+			gameState->blueOffset += (int)4.0f * ((int)controller->stickAverageY);
 		}
 		else
 		{

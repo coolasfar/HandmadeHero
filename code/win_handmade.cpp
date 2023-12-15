@@ -163,23 +163,38 @@ typedef DIRECT_SOUND_CREATE(direct_sound_create);
 struct game_code
 {
 	HMODULE gameCodeDLL;
+	FILETIME DLLlastWriteTime;
 	game_update_and_render* updateAndRender;
 	game_get_sound_sample*	getSoundSamples;
 
 	bool isValid;
 };
 
+inline FILETIME GetLastWriteTime(const char* filename)
+{
+	FILETIME lastWriteTime = {};
+	WIN32_FIND_DATAA findData;
+	HANDLE findHandle = FindFirstFileA(filename, &findData);
+	if (findHandle != INVALID_HANDLE_VALUE)
+	{
+		FindClose(findHandle);
+		lastWriteTime = findData.ftLastWriteTime;
+	}
+	return lastWriteTime;
+}
 
-
-internal game_code LoadGameCode()
+internal game_code LoadGameCode(const char* filename)
 {
 	game_code result = {};
 
-	//const char* exe_file = "e:/HandmadeHero/x64/Debug/HandmadeHero.exe";
-	//const char* dll_file = "e:/HandmadeHero/x64/Debug/HandmadeHero_temp.exe";
-	CopyFile(L"handmade.dll", L"handmade_temp.dll", FALSE);
+	const char* tempDllName = "handmade_temp.dll";
 
-	result.gameCodeDLL = LoadLibraryA("handmade_temp.dll");
+	result.DLLlastWriteTime = GetLastWriteTime(filename);
+	CopyFileA(filename, tempDllName, FALSE);
+
+
+
+	result.gameCodeDLL = LoadLibraryA(tempDllName);
 	if (result.gameCodeDLL)
 	{
 		result.updateAndRender = (game_update_and_render*)GetProcAddress
@@ -599,7 +614,6 @@ internal void FillSoundBuffer(sound_output* soundOutput,
 		++(soundOutput->RunningSampleIndex);
 	}
 
-
 	GlobalSecondaryBuffer->Unlock(
 		Region1,
 		Region1Size,
@@ -678,9 +692,9 @@ internal void DebugSyncDisplay(offscreen_buffer* BackBuffer,
 		++playerCursorIndex)
 	{
 		DWORD thisPlayCursor = lastPlayCursor[playerCursorIndex];
-		Assert(thisPlayCursor < soundOutput->SecondaryBufferSize);
+		Assert(thisPlayCursor < (DWORD)soundOutput->SecondaryBufferSize);
 		real32 XReal32 = c * (real32)thisPlayCursor;
-		real32 X =  padX +(int)XReal32;
+		int X =  padX +(int)XReal32;
 		DebugDrawVertical(BackBuffer, X, top, bottom, 0XFFFFFFFF);
 	}
 }
@@ -805,7 +819,8 @@ int WINAPI WinMain(
 				game_input* newInput = &input[0];
 				game_input* oldInput = &input[1];
 
-				game_code game = LoadGameCode();
+				const char* sourceDllName = "handmade.dll";
+				game_code game = LoadGameCode(sourceDllName);
 				uint32 loadCounter = 0;
 
 				int64 LastCycleCount = __rdtsc();
@@ -815,7 +830,7 @@ int WINAPI WinMain(
 					if (loadCounter++ > 120)
 					{
 						UnloadGameCode(&game);
-						game = LoadGameCode();
+						game = LoadGameCode(sourceDllName);
 						loadCounter = 0;
 					}
 					
@@ -845,7 +860,7 @@ int WINAPI WinMain(
 					}
 
 					for (DWORD controllerIndex = 0;
-						controllerIndex < MaxControllerCount;
+						controllerIndex < (DWORD)MaxControllerCount;
 						++controllerIndex)
 					{
 						game_controller_input* oldController = 
@@ -874,11 +889,11 @@ int WINAPI WinMain(
 						}
 					}
 
-					DWORD ByteToLock;
-					DWORD ByteToWrite;
+					DWORD ByteToLock = 0;
+					DWORD ByteToWrite = 0;
 					//	DWORD TargetCursor;
-					DWORD PlayCursor;
-					DWORD WriteCursor;
+					DWORD PlayCursor = 0;
+					DWORD WriteCursor = 0;
 					bool SoundIsValid = false;
 					if (SUCCEEDED(GlobalSecondaryBuffer->
 						GetCurrentPosition(&PlayCursor, &WriteCursor)))
@@ -946,8 +961,8 @@ int WINAPI WinMain(
 						{
 							if (sleepIsGranular)
 							{
-								DWORD sleepMs = 1000.0f * (targetSecondsPerFrame -
-									secondsElapsedForFrame);
+								DWORD sleepMs = DWORD(1000.0f * (targetSecondsPerFrame -
+									secondsElapsedForFrame));
 								Sleep(sleepMs);
 							}
 							secondsElapsedForFrame = 
