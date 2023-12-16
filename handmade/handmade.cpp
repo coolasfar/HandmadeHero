@@ -43,7 +43,7 @@ void RenderGradient(game_offscreen_buffer* Buffer,
 			uint8 green = (y + yOffset);
 			//	xx RR GG BB
 			// pixel in memory: 00 00 00 00
-			*Pixel++ = ((green << 8) | blue << 8);
+			*Pixel++ = ((green) | blue <<8);
 		}
 		Row += Buffer->Pitch;
 	}

@@ -30,4 +30,14 @@ struct window_dimension
 	int Height;
 };
 
+struct game_code
+{
+	HMODULE gameCodeDLL;
+	FILETIME DLLlastWriteTime;
+	game_update_and_render* updateAndRender;
+	game_get_sound_sample* getSoundSamples;
+
+	bool isValid;
+};
+
 #endif

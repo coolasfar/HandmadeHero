@@ -160,15 +160,7 @@ LPDIRECTSOUND* ppDS, LPUNKNOWN pUnkOuter)
 
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
-struct game_code
-{
-	HMODULE gameCodeDLL;
-	FILETIME DLLlastWriteTime;
-	game_update_and_render* updateAndRender;
-	game_get_sound_sample*	getSoundSamples;
 
-	bool isValid;
-};
 
 inline FILETIME GetLastWriteTime(const char* filename)
 {
@@ -183,16 +175,14 @@ inline FILETIME GetLastWriteTime(const char* filename)
 	return lastWriteTime;
 }
 
-internal game_code LoadGameCode(const char* filename)
+internal game_code LoadGameCode(const char* sourceDllName, const char* tempDllName)
 {
 	game_code result = {};
 
-	const char* tempDllName = "handmade_temp.dll";
-
-	result.DLLlastWriteTime = GetLastWriteTime(filename);
-	CopyFileA(filename, tempDllName, FALSE);
 
 
+	result.DLLlastWriteTime = GetLastWriteTime(sourceDllName);
+	CopyFileA(sourceDllName, tempDllName, FALSE);
 
 	result.gameCodeDLL = LoadLibraryA(tempDllName);
 	if (result.gameCodeDLL)
@@ -699,13 +689,53 @@ internal void DebugSyncDisplay(offscreen_buffer* BackBuffer,
 	}
 }
 
+void CatStrings(size_t sourceACount, char* sourceA,
+	size_t sourceBCount, char* sourceB,
+	size_t destCount, char* dest)
+{
+	for (size_t index = 0; index < sourceACount; ++index)
+	{
+		*dest++ = *sourceA++;
+	}
+
+	for (size_t index = 0; index < sourceBCount; ++index)
+	{
+		*dest++ = *sourceB++;
+	}
+
+	*dest++ = '\0';
+}
+
 int WINAPI WinMain(
 	HINSTANCE hInstance,
 	HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine,
 	int nShowCmd)
 {
-	
+	char exeFileName[MAX_PATH];
+	DWORD sizeOfFileName = GetModuleFileNameA(0, exeFileName, sizeof(exeFileName));
+	const char* onePastLastSlash = exeFileName;
+	for (char* scan = exeFileName; *scan; ++scan)
+	{
+		if (*scan == '\\')
+		{
+			onePastLastSlash = scan + 1;
+		}
+	}
+
+	char sourceGameCodeDllFilename[] = "handmade.dll";
+	char sourceGameCodeFullPath[MAX_PATH];
+	CatStrings(onePastLastSlash - exeFileName, exeFileName,
+		sizeof(sourceGameCodeDllFilename)-1, sourceGameCodeDllFilename,
+		sizeof(sourceGameCodeFullPath), sourceGameCodeFullPath);
+
+	char tempGameCodeDllFilename[] = "handmade_temp.dll";
+	char tempGameCodeFullPath[MAX_PATH];
+	CatStrings(onePastLastSlash - exeFileName, exeFileName,
+		sizeof(tempGameCodeDllFilename)-1, tempGameCodeDllFilename,
+		sizeof(tempGameCodeFullPath), tempGameCodeFullPath);
+
+
 	LARGE_INTEGER PerfFrequency;
  	QueryPerformanceFrequency(&PerfFrequency);
 	GlobalPerfCountFrequency = PerfFrequency.QuadPart;
@@ -819,18 +849,19 @@ int WINAPI WinMain(
 				game_input* newInput = &input[0];
 				game_input* oldInput = &input[1];
 
-				const char* sourceDllName = "handmade.dll";
-				game_code game = LoadGameCode(sourceDllName);
+				
+				game_code game = LoadGameCode(sourceGameCodeFullPath,tempGameCodeFullPath);
 				uint32 loadCounter = 0;
 
 				int64 LastCycleCount = __rdtsc();
 
 				while (GlobalRunning)
 				{
-					if (loadCounter++ > 120)
+					FILETIME newDLLwriteTime = GetLastWriteTime(sourceGameCodeFullPath);
+					if (CompareFileTime(&newDLLwriteTime,&game.DLLlastWriteTime) != 0)
 					{
 						UnloadGameCode(&game);
-						game = LoadGameCode(sourceDllName);
+						game = LoadGameCode(sourceGameCodeFullPath, tempGameCodeFullPath);
 						loadCounter = 0;
 					}
 					
